@@ -14,14 +14,18 @@
   header h1{ font-size:20px; margin:0; color:var(--brand); }
   header a{ font-size:14px; color:var(--sub); text-decoration:none; }
   header a:hover{ color:var(--brand); text-decoration:underline; }
-  .search{ margin:20px 0; }
-  .search input{ width:100%; padding:11px 14px; border:1px solid #ccc; border-radius:8px; font-size:15px; }
+  .bar{ display:flex; gap:10px; margin:20px 0; }
+  .bar input{ flex:1; padding:11px 14px; border:1px solid #ccc; border-radius:8px; font-size:15px; }
+  .bar button{ padding:11px 16px; border:1px solid var(--brand); background:#fff; color:var(--brand); border-radius:8px; font-weight:600; cursor:pointer; }
+  .gate{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:26px; text-align:center; margin-top:24px; }
+  .gate input{ width:220px; padding:11px 12px; border:1px solid #ccc; border-radius:8px; font-size:15px; }
+  .gate button{ margin-left:8px; padding:11px 18px; background:var(--brand); color:#fff; border:0; border-radius:8px; font-weight:600; cursor:pointer; }
   table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   th,td{ text-align:left; padding:12px 14px; border-bottom:1px solid var(--line); font-size:14px; }
   th{ background:#f0f3f7; color:var(--sub); font-weight:600; font-size:12.5px; }
   tr:last-child td{ border-bottom:0; }
   .tk{ font-family:monospace; color:var(--brand); font-weight:600; }
-  .st{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:12px; font-weight:600; }
+  .st{ display:inline-block; padding:3px 9px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; }
   .st.done{ background:#eaf6ee; color:#1e6b3a; }
   .st.proc{ background:#fff5e6; color:#a86a10; }
   .st.recv{ background:#eef1f4; color:#5a6b7a; }
@@ -31,6 +35,7 @@
   .empty{ text-align:center; color:var(--sub); padding:40px; background:#fff; border:1px dashed var(--line); border-radius:12px; }
   .q{ color:var(--ink); }
   .meta{ color:var(--sub); font-size:12px; }
+  .note{ color:#aaa; font-size:12px; text-align:center; margin-top:16px; }
 </style>
 </head>
 <body>
@@ -40,61 +45,89 @@
     <a href="index.html">← 새 질의 접수</a>
   </header>
 
-  <div class="search">
-    <input type="text" id="q" placeholder="🔍 접수번호 / 이름 / 질문 내용으로 검색">
+  <!-- 접속코드 게이트 -->
+  <div class="gate" id="gate">
+    <p style="margin:0 0 12px; color:var(--sub);">게시판을 보려면 <b>팀 접속코드</b>를 입력하세요.</p>
+    <input type="password" id="code" placeholder="접속코드" onkeydown="if(event.key==='Enter')enter()">
+    <button onclick="enter()">확인</button>
+    <div id="gateErr" style="color:#c0392b; font-size:13px; margin-top:10px; display:none;">코드가 올바르지 않습니다.</div>
   </div>
 
-  <div id="list"></div>
+  <!-- 목록 -->
+  <div id="main" style="display:none;">
+    <div class="bar">
+      <input type="text" id="q" placeholder="🔍 접수번호 / 이름 / 질문 내용으로 검색">
+      <button onclick="load()">↻ 새로고침</button>
+    </div>
+    <div id="list"></div>
+    <div class="note">이 목록은 구글시트에서 실시간으로 불러옵니다. 답변이 완료되면 자동으로 표시됩니다.</div>
+  </div>
 </div>
 
 <script>
   var cfg = window.PORTAL_CONFIG || {};
   if (cfg.ORG_NAME) document.getElementById('org').textContent = cfg.ORG_NAME + ' — 답변 게시판';
-  var all = [];
+  var all = [], CODE = "";
 
   var STATUS = {
-    'done':   ['done','✅ 완료'],
-    'proc':   ['proc','⏳ 처리중'],
-    'recv':   ['recv','📥 접수'],
-    'error':  ['err','⚠ 오류']
+    'done':  ['done','✅ 완료'], 'proc':['proc','⏳ 처리중'], 'review':['proc','⏳ 처리중'],
+    'recv':  ['recv','📥 접수'], 'error':['err','⚠ 오류']
   };
+
+  // 저장된 코드가 있으면 자동 진입
+  var saved = localStorage.getItem('nomu_code');
+  if (saved) { CODE = saved; showMain(); load(); }
+
+  function enter(){
+    CODE = document.getElementById('code').value.trim();
+    if (!CODE) return;
+    fetchBoard(function(ok){
+      if (ok){ localStorage.setItem('nomu_code', CODE); showMain(); render(all); }
+      else { document.getElementById('gateErr').style.display='block'; }
+    });
+  }
+  function showMain(){ document.getElementById('gate').style.display='none'; document.getElementById('main').style.display='block'; }
+
+  function fetchBoard(cb){
+    if (!cfg.APPS_SCRIPT_URL || cfg.APPS_SCRIPT_URL.indexOf('http')!==0){
+      document.getElementById('list').innerHTML='<div class="empty">⚙️ 서버 주소(config.js)가 설정되지 않았습니다.</div>'; if(cb)cb(false); return;
+    }
+    fetch(cfg.APPS_SCRIPT_URL + '?action=board&code=' + encodeURIComponent(CODE) + '&t=' + Date.now())
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok){ all = (res.items||[]).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); if(cb)cb(true); }
+        else { if(cb)cb(false); }
+      })
+      .catch(function(){ if(cb)cb(false); });
+  }
+
+  function load(){ fetchBoard(function(ok){ if(ok) render(all); }); }
+
+  function answerUrl(id){ return cfg.APPS_SCRIPT_URL + '?action=answer&id=' + encodeURIComponent(id) + '&code=' + encodeURIComponent(CODE); }
 
   function render(items){
     var box = document.getElementById('list');
-    if (!items.length){ box.innerHTML = '<div class="empty">표시할 항목이 없습니다.</div>'; return; }
+    if (!items.length){ box.innerHTML = '<div class="empty">아직 접수된 질의가 없습니다.</div>'; return; }
     var rows = items.map(function(it){
       var s = STATUS[it.status] || STATUS['recv'];
-      var link = (it.status==='done' && it.answer_url)
-        ? '<a class="view" href="'+it.answer_url+'" target="_blank">답변 보기 →</a>'
+      var link = (it.status==='done' && it.has_answer)
+        ? '<a class="view" href="'+answerUrl(it.id)+'" target="_blank">답변 보기 →</a>'
         : '<span class="meta">—</span>';
       var qshort = (it.question||'').length>50 ? (it.question||'').slice(0,50)+'…' : (it.question||'');
-      return '<tr>'
-        + '<td><span class="tk">'+it.id+'</span></td>'
-        + '<td class="q">'+escapeHtml(qshort)+'<div class="meta">'+escapeHtml(it.name||'')+(it.dept?' · '+escapeHtml(it.dept):'')+' · '+(it.date||'')+'</div></td>'
-        + '<td><span class="st '+s[0]+'">'+s[1]+'</span></td>'
-        + '<td>'+link+'</td>'
-        + '</tr>';
+      return '<tr><td><span class="tk">'+it.id+'</span></td>'
+        + '<td class="q">'+esc(qshort)+'<div class="meta">'+esc(it.name||'')+(it.dept?' · '+esc(it.dept):'')+' · '+(it.date||'')+'</div></td>'
+        + '<td><span class="st '+s[0]+'">'+s[1]+'</span></td><td>'+link+'</td></tr>';
     }).join('');
     box.innerHTML = '<table><thead><tr><th>접수번호</th><th>질문</th><th>상태</th><th>답변</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
 
-  function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
   document.getElementById('q').addEventListener('input', function(e){
     var t = e.target.value.trim().toLowerCase();
     if (!t){ render(all); return; }
-    render(all.filter(function(it){
-      return (it.id+' '+(it.name||'')+' '+(it.question||'')).toLowerCase().indexOf(t) >= 0;
-    }));
+    render(all.filter(function(it){ return (it.id+' '+(it.name||'')+' '+(it.question||'')).toLowerCase().indexOf(t)>=0; }));
   });
-
-  fetch((cfg.ANSWERS_INDEX||'answers/index.json') + '?t=' + Date.now())
-    .then(function(r){ return r.ok ? r.json() : []; })
-    .then(function(data){
-      all = (data.items || data || []).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
-      render(all);
-    })
-    .catch(function(){ document.getElementById('list').innerHTML = '<div class="empty">아직 발행된 답변 목록이 없습니다.</div>'; });
 </script>
 </body>
 </html>

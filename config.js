@@ -12,3 +12,5 @@ window.PORTAL_CONFIG = {
   // 답변 게시판이 읽어올 목록 파일 (실행 머신이 갱신)
   ANSWERS_INDEX: "answers/index.json"
 };
+
+

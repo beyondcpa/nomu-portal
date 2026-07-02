@@ -15,6 +15,7 @@
  */
 
 var SECRET = "여기를_긴_임의문자열로_바꾸세요";   // 실행 머신과 공유하는 비밀키
+var ACCESS_CODE = "beyond";  // 직원이 질문 낼 때 입력하는 공통 코드
 var SHEET_NAME = "queue";
 
 function sheet_() {
@@ -44,6 +45,10 @@ function doPost(e) {
     }
 
     // (B) 홈페이지 신규 접수
+    // 팀 접속코드 확인 — 외부인/무권한자 차단
+    if ((body.accessCode || "") !== ACCESS_CODE) {
+      return json_({ ok:false, error:"접속코드가 올바르지 않습니다. 회사에서 받은 코드를 확인하세요." });
+    }
     var q = (body.question || "").toString().trim();
     var name = (body.name || "").toString().trim();
     if (!q || !name) return json_({ ok:false, error:"이름/질문 누락" });

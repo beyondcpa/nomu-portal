@@ -84,6 +84,9 @@
         </label>
       </div>
 
+      <label>팀 접속코드 <span class="req">*</span> <span class="hint">회사에서 공유받은 코드 (외부인 차단용)</span></label>
+      <input type="password" id="accessCode" autocomplete="off" placeholder="예) 회사에서 알려준 코드">
+
       <button type="submit" id="submitBtn">질의 제출</button>
       <div class="msg" id="msg"></div>
     </form>
@@ -108,9 +111,11 @@
       name: document.getElementById('name').value.trim(),
       dept: document.getElementById('dept').value.trim(),
       question: document.getElementById('question').value.trim(),
-      depth: (document.querySelector('input[name=depth]:checked')||{}).value || 'standard'
+      depth: (document.querySelector('input[name=depth]:checked')||{}).value || 'standard',
+      accessCode: document.getElementById('accessCode').value.trim()
     };
     if (!payload.name || !payload.question){ show('err','이름과 질문을 입력해 주세요.'); return; }
+    if (!payload.accessCode){ show('err','팀 접속코드를 입력해 주세요.'); return; }
     if (!cfg.APPS_SCRIPT_URL || cfg.APPS_SCRIPT_URL.indexOf('http') !== 0){
       show('err','⚙️ 아직 서버(Apps Script) 주소가 설정되지 않았습니다. 관리자에게 config.js 설정을 요청하세요.'); return;
     }

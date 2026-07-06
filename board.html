@@ -34,6 +34,11 @@
   td a.view:hover{ text-decoration:underline; }
   .empty{ text-align:center; color:var(--sub); padding:40px; background:#fff; border:1px dashed var(--line); border-radius:12px; }
   .q{ color:var(--ink); }
+  details.qd summary{ cursor:pointer; list-style:none; outline:none; }
+  details.qd summary::-webkit-details-marker{ display:none; }
+  details.qd .more{ color:var(--brand); font-size:12px; font-weight:600; margin-left:2px; }
+  details.qd[open] summary .more, details.qd[open] summary .qcut{ display:none; }
+  .qfull{ white-space:pre-line; margin-top:6px; padding:9px 11px; background:#f7f9fb; border:1px solid #eef1f4; border-radius:6px; font-size:13.5px; }
   .meta{ color:var(--sub); font-size:12px; }
   .note{ color:#aaa; font-size:12px; text-align:center; margin-top:16px; }
 </style>
@@ -113,9 +118,13 @@
       var link = (it.status==='done' && it.has_answer)
         ? '<a class="view" href="'+answerUrl(it.id)+'" target="_blank">답변 보기 →</a>'
         : '<span class="meta">—</span>';
-      var qshort = (it.question||'').length>50 ? (it.question||'').slice(0,50)+'…' : (it.question||'');
+      var full = esc(it.question||'');
+      var isLong = (it.question||'').length > 50;
+      var qcell = isLong
+        ? '<details class="qd"><summary><span class="qcut">'+esc((it.question).slice(0,50))+'…</span><span class="more">[전체보기]</span></summary><div class="qfull">'+full+'</div></details>'
+        : full;
       return '<tr><td><span class="tk">'+it.id+'</span></td>'
-        + '<td class="q">'+esc(qshort)+'<div class="meta">'+esc(it.name||'')+(it.dept?' · '+esc(it.dept):'')+' · '+(it.date||'')+'</div></td>'
+        + '<td class="q">'+qcell+'<div class="meta">'+esc(it.name||'')+(it.dept?' · '+esc(it.dept):'')+' · '+(it.date||'')+'</div></td>'
         + '<td><span class="st '+s[0]+'">'+s[1]+'</span></td><td>'+link+'</td></tr>';
     }).join('');
     box.innerHTML = '<table><thead><tr><th>접수번호</th><th>질문</th><th>상태</th><th>답변</th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -131,5 +140,3 @@
 </script>
 </body>
 </html>
-
-
